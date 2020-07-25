@@ -16,7 +16,8 @@
                  ]
 
   :plugins      [[day8/lein-git-inject "0.0.14"]
-                 [lein-shadow          "0.2.0"]]
+                 [lein-shadow          "0.2.0"]
+                 [lein-cljfmt "0.6.8"]]
 
   :middleware   [leiningen.git-inject/middleware]
 
