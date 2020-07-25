@@ -16,7 +16,7 @@
 ;; Call the dispatching function every second.
 ;; `defonce` is like `def` but it ensures only one instance is ever
 ;; created in the face of figwheel hot-reloading of this file.
-(defonce do-timer (js/setInterval dispatch-timer-event 3000))
+(defonce do-timer (js/setInterval dispatch-timer-event 1500))
 
 
 ;; -- Domino 2 - Event Handlers -----------------------------------------------
@@ -100,21 +100,21 @@
 
 ;; -- FIXME: MOVE! ----------------------------------------------------------- 
 
-(def sim-plot
-  (clj->js 
-    {:$schema
-     "https://vega.github.io/schema/vega-lite/v4.json",
-     :data
-     {:values (vec (for [x (range 10) y (range 10)] {:x x :y y :z (rand-int 100)}))}
-     :mark "rect",
-     :encoding
-     {:y {:field "y", :type "ordinal"},
-      :x {:field "x", :type "ordinal"},
-      :color {:field "z", :type "quantitative"}},
-     :config
-     {:axis {:grid true, :tickBand "extent"},
-      :range {:heatmap {:scheme "magma"}}
-     }})) 
+;; (def sim-plot
+;;   (clj->js 
+;;     {:$schema
+;;      "https://vega.github.io/schema/vega-lite/v4.json",
+;;      :data
+;;      {:values (vec (for [x (range 10) y (range 10)] {:x x :y y :z (rand-int 100)}))}
+;;      :mark "rect",
+;;      :encoding
+;;      {:y {:field "y", :type "ordinal"},
+;;       :x {:field "x", :type "ordinal"},
+;;       :color {:field "z", :type "quantitative"}},
+;;      :config
+;;      {:axis {:grid true, :tickBand "extent"},
+;;       :range {:heatmap {:scheme "viridis"}}
+;;      }})) 
 
 
 (defn sim-plotf
@@ -124,30 +124,37 @@
     {:$schema
      "https://vega.github.io/schema/vega-lite/v4.json",
      :data
-     {:values people}
+     {:values (for [[[x y] z] (seq people)] {:x x :y y :z z})},
      :mark "rect",
      :encoding
      {:y {:field "y", :type "ordinal"},
       :x {:field "x", :type "ordinal"},
-      :color {:field "z", :type "quantitative" :max 200 :scale {:rangeMax 200}}},
+      :color {:field "z", :type "quantitative", :title "Phase shift"}},
      :config
-     {:axis {:grid true, :tickBand "extent"},
-      :range {:heatmap {:scheme "magma" :count 100 ;; :extent [0, 100]
-}}
-;;      :background "#99ccff"
+     {:axis {:grid true, :tickBand "extent" :ticks false :labels false :title nil},
+      :range {:heatmap {:scheme  #_"plasma" "lighttealblue"}},
+      ;;:legend {:title "Phase shift"}
      }})) 
 
-(defn new-z
- [person people]
- (let [neighbors (for [x (range (dec (:x person)) (inc (:x person)))
-                       y (range (dec (:y person)) (inc (:y person)))
-                       :when (and (<= 0 9 x) (<= 0 9 y) (not= x (:x person)) (not= y (:y person)))]
-
-)
+(defn neighbors
+ [person]
+ (vec (for [x (range (dec (first person)) (+ 2 (first person)))
+            y (range (dec (second person)) (+ 2 (second person)))
+            :when (and (<= 0 x 9) (<= 0 y 9) (or (not= x (first person)) (not= y (second person))))]
+        [x y])))
 
 (defn simulation-step
  [people]
-does not work any more - need to iterate on the map
- (for [person people] (assoc person :z (if (= (:x person) 11) (:z person) (new-z person people))))
-)
+ ;; (prn :initial people)
+ (loop [to-sync (shuffle (filter #(<= (first %) 9) (keys people))) people people]
+   ;; (prn :entry-to-loop-ppl people)
+   ;; (prn :entry-to-loop-to-sync to-sync)
+   (if (empty? to-sync)
+       (do (prn :simulation-step people) people)
+       (let [person (first to-sync)
+             neighbor (rand-nth (neighbors person))
+;;             _ (when-not (sequential? person) (prn "======================= :person " person " ======================"))
+;;             _ (when-not (sequential? neighbor) (prn "======================= :neighbor " neighbor :neighbors (neighbors person) :person person " ======================"))
+             new-z (Math/floor (/ (+ (people person) (people neighbor)) 2))]
+	 (recur (rest to-sync) (assoc people person new-z neighbor new-z))))))
 
